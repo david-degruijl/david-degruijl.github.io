@@ -78,13 +78,14 @@ export function mountMicroscopeIntro() {
     <div class="microscope-intro__lens-aperture-lock" aria-hidden="true"></div>
     <div class="microscope-intro__veil" aria-hidden="true"></div>
     <div class="microscope-intro__rim-dark-overlay" aria-hidden="true"></div>
+    <div class="microscope-intro__post-carousel-still-blur" aria-hidden="true"></div>
     <div class="microscope-intro__content-pivot">
     <div class="microscope-intro__content">
       <span id="microscope-intro-title-sr" class="microscope-intro__sr-only">${escapeHtml(INTRO_QUOTE)}</span>
       <p class="microscope-intro__quote" aria-hidden="true">
         <span class="microscope-intro__typed"></span><span class="microscope-intro__caret" aria-hidden="true"></span>
       </p>
-      <button type="button" class="microscope-intro__enter">Adjust</button>
+      <button type="button" class="microscope-intro__enter">Adjust lens</button>
     </div>
     </div>
     </div>
@@ -117,6 +118,7 @@ export function mountMicroscopeIntro() {
   const rimDarkOverlayEl = root.querySelector(".microscope-intro__rim-dark-overlay");
   const ringBlurBed = root.querySelector(".microscope-intro__ring-blur-bed");
   const apertureLock = root.querySelector(".microscope-intro__lens-aperture-lock");
+  const postCarouselStillBlurEl = root.querySelector(".microscope-intro__post-carousel-still-blur");
   const contentPivot = root.querySelector(".microscope-intro__content-pivot");
   const enter = root.querySelector(".microscope-intro__enter");
   const skip = root.querySelector(".microscope-intro__skip");
@@ -145,16 +147,13 @@ export function mountMicroscopeIntro() {
   enter.setAttribute("aria-hidden", "true");
   enter.setAttribute("tabindex", "-1");
 
+  /* Set the lens image as a custom property on root so every descendant layer that consumes
+     var(--microscope-lens-image) inherits it (lens panels, ring-blur-bed, aperture-lock,
+     post-carousel-still-blur). Per-element setters previously gated on `isConnected`
+     silently failed because root is not in the document until the insertBefore call below,
+     so those layers painted nothing in the annulus. */
   const lensUrl = `${import.meta.env.BASE_URL}bacterialimage1.png`;
-  root.querySelectorAll(".microscope-intro__lens-panel").forEach((panel) => {
-    panel.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
-  });
-  if (ringBlurBed?.isConnected) {
-    ringBlurBed.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
-  }
-  if (apertureLock?.isConnected) {
-    apertureLock.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
-  }
+  root.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
 
   document.body.insertBefore(root, page);
   if (hudBarFill) {
@@ -339,6 +338,7 @@ export function mountMicroscopeIntro() {
       exitBlackoutEl,
       rimDarkOverlayEl,
       apertureLock,
+      postCarouselStillBlurEl,
     ]);
     if (exitBlackoutEl?.isConnected) {
       gsap.set(exitBlackoutEl, { opacity: 0, clearProps: "opacity" });
@@ -349,6 +349,9 @@ export function mountMicroscopeIntro() {
     if (apertureLock?.isConnected) {
       gsap.set(apertureLock, { opacity: 0, clearProps: "opacity" });
       apertureLock.style.visibility = "hidden";
+    }
+    if (postCarouselStillBlurEl?.isConnected) {
+      gsap.set(postCarouselStillBlurEl, { opacity: 0, clearProps: "opacity" });
     }
     if (veil?.isConnected) {
       veil.style.removeProperty("background");
@@ -786,6 +789,10 @@ export function mountMicroscopeIntro() {
     if (rimDarkOverlayEl?.isConnected) {
       gsap.set(rimDarkOverlayEl, { opacity: 0, clearProps: "opacity" });
     }
+    if (postCarouselStillBlurEl?.isConnected) {
+      gsap.killTweensOf(postCarouselStillBlurEl);
+      gsap.set(postCarouselStillBlurEl, { opacity: 0, clearProps: "opacity" });
+    }
     if (exitBlackoutEl?.isConnected) {
       gsap.killTweensOf(exitBlackoutEl);
       gsap.set(exitBlackoutEl, { opacity: 0, clearProps: "opacity" });
@@ -826,12 +833,16 @@ export function mountMicroscopeIntro() {
         exitBlackoutEl,
         rimDarkOverlayEl,
         apertureLock,
+        postCarouselStillBlurEl,
       ]);
       if (exitBlackoutEl?.isConnected) {
         gsap.set(exitBlackoutEl, { opacity: 0, clearProps: "opacity" });
       }
       if (rimDarkOverlayEl?.isConnected) {
         gsap.set(rimDarkOverlayEl, { opacity: 0, clearProps: "opacity" });
+      }
+      if (postCarouselStillBlurEl?.isConnected) {
+        gsap.set(postCarouselStillBlurEl, { opacity: 0, clearProps: "opacity" });
       }
       if (veil?.isConnected) {
         veil.style.removeProperty("background");
@@ -875,6 +886,7 @@ export function mountMicroscopeIntro() {
       exitBlackoutEl,
       rimDarkOverlayEl,
       apertureLock,
+      postCarouselStillBlurEl,
     ]);
 
     focusBlurDrive.b = 20;
@@ -943,6 +955,9 @@ export function mountMicroscopeIntro() {
     if (rimDarkOverlayEl?.isConnected) {
       gsap.set(rimDarkOverlayEl, { opacity: 0 });
     }
+    if (postCarouselStillBlurEl?.isConnected) {
+      gsap.set(postCarouselStillBlurEl, { opacity: 0 });
+    }
 
     exitTimeline = gsap.timeline({
       onComplete: () => {
@@ -953,20 +968,49 @@ export function mountMicroscopeIntro() {
     });
 
     if (rimDarkOverlayEl?.isConnected) {
-      // 1. Fade to grey when Adjust is clicked
+      // Rim wash fades in over the rotation (covers the lens swap as a "switching" cue),
+      // then dissolves away as the incoming objective seats so it doesn't fight the
+      // post-carousel blurred-figure beat that follows.
       exitTimeline.fromTo(
         rimDarkOverlayEl,
         { opacity: 0, immediateRender: false },
         { opacity: 1, duration: 0.8 * INTRO_EXIT_TIME_SCALE, ease: "power2.out" },
         TURRET_BREAK,
       );
-      
-      // 2. Fade the grey away (revealing the blurred image bed underneath) 
-      // as the new zoomed lens comes out of the first blackout
+      const RIM_FADE_OUT_DURATION = Math.max(
+        0.32 * INTRO_EXIT_TIME_SCALE,
+        LENS_CAROUSEL_DURATION - EXIT_BLACK_REVEAL_AT,
+      );
       exitTimeline.to(
         rimDarkOverlayEl,
-        { opacity: 0, duration: 1.2 * INTRO_EXIT_TIME_SCALE, ease: "power2.inOut" },
+        { opacity: 0, duration: RIM_FADE_OUT_DURATION, ease: "power2.inOut" },
         EXIT_BLACK_REVEAL_AT,
+      );
+    }
+
+    /* Post-carousel "blurred zoomed figure" beat: once the new objective has seated and the
+       lens is standing still, fade in a full-annulus blurred copy of the zoomed specimen
+       (z-index above rim-dark-overlay), hold through the two focus hunts, and ease it out
+       just before the second nosepiece sweep begins. This is the explicit "blurred image
+       comes back after the turret swings" the user asked for. */
+    if (postCarouselStillBlurEl?.isConnected) {
+      const POST_STILL_BLUR_IN_AT = LENS_CAROUSEL_DURATION;
+      const POST_STILL_BLUR_IN_DURATION = 0.36 * INTRO_EXIT_TIME_SCALE;
+      const POST_STILL_BLUR_OUT_DURATION = 0.3 * INTRO_EXIT_TIME_SCALE;
+      const POST_STILL_BLUR_OUT_AT = Math.max(
+        POST_STILL_BLUR_IN_AT + POST_STILL_BLUR_IN_DURATION,
+        CAROUSEL2_START - POST_STILL_BLUR_OUT_DURATION,
+      );
+      exitTimeline.fromTo(
+        postCarouselStillBlurEl,
+        { opacity: 0, immediateRender: false },
+        { opacity: 1, duration: POST_STILL_BLUR_IN_DURATION, ease: "power2.out" },
+        POST_STILL_BLUR_IN_AT,
+      );
+      exitTimeline.to(
+        postCarouselStillBlurEl,
+        { opacity: 0, duration: POST_STILL_BLUR_OUT_DURATION, ease: "power2.in" },
+        POST_STILL_BLUR_OUT_AT,
       );
     }
 
@@ -1135,12 +1179,16 @@ export function mountMicroscopeIntro() {
         exitBlackoutEl,
         rimDarkOverlayEl,
         apertureLock,
+        postCarouselStillBlurEl,
       ]);
       if (exitBlackoutEl?.isConnected) {
         gsap.set(exitBlackoutEl, { opacity: 0, clearProps: "opacity" });
       }
       if (rimDarkOverlayEl?.isConnected) {
         gsap.set(rimDarkOverlayEl, { opacity: 0, clearProps: "opacity" });
+      }
+      if (postCarouselStillBlurEl?.isConnected) {
+        gsap.set(postCarouselStillBlurEl, { opacity: 0, clearProps: "opacity" });
       }
       if (veil?.isConnected) {
         veil.style.removeProperty("background");
@@ -1184,12 +1232,16 @@ export function mountMicroscopeIntro() {
       exitBlackoutEl,
       rimDarkOverlayEl,
       apertureLock,
+      postCarouselStillBlurEl,
     ]);
     if (exitBlackoutEl?.isConnected) {
       gsap.set(exitBlackoutEl, { opacity: 0, clearProps: "opacity" });
     }
     if (rimDarkOverlayEl?.isConnected) {
       gsap.set(rimDarkOverlayEl, { opacity: 0, clearProps: "opacity" });
+    }
+    if (postCarouselStillBlurEl?.isConnected) {
+      gsap.set(postCarouselStillBlurEl, { opacity: 0, clearProps: "opacity" });
     }
     if (veil?.isConnected) {
       veil.style.removeProperty("background");
