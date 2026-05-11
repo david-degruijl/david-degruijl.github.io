@@ -5,3 +5,6 @@ dist
 *.log
 .env
 .env.local
+
+# Keep project notes local; not published with the repo.
+README.md
