@@ -232,10 +232,6 @@
   background-size:172% auto;
 }
 
-.microscope-intro:not(.microscope-intro--turret-field) .microscope-intro__lens-carousel-track>.microscope-intro__lens-panel--zoomed {
-  background-size:cover!important;
-}
-
 .microscope-intro__lens-panel--site {
   background-image:none;
   background-color:#103643;

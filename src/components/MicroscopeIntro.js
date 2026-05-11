@@ -156,6 +156,7 @@ export function mountMicroscopeIntro() {
   root.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
 
   document.body.insertBefore(root, page);
+
   if (hudBarFill) {
     hudBarFill.style.transform = "scaleX(1)";
   }
@@ -932,7 +933,12 @@ export function mountMicroscopeIntro() {
       quoteEl.style.removeProperty("visibility");
       gsap.set(quoteEl, { opacity: 1, y: 0 });
     }
-    root.classList.add("microscope-intro--zooming");
+    /* DO NOT add the --zooming class here. It flips backdrop-filter off on the veil and snaps
+       ring-blur-bed to opaque; both elements are masked to be transparent inside the lens, but
+       toggling backdrop-filter at a masked edge causes a one-frame compositing reshuffle right
+       at the lens boundary that reads as the picture in the lens "changing and going back" on
+       the click frame. We move the class flip into the TURRET_BREAK callback below so it lands
+       on the same frame the rotation begins, where the motion masks any boundary repaint. */
     root.style.setProperty("--lens-r", String(LENS_R0));
     root.style.removeProperty("--ca-strength");
     root.style.setProperty("--lens-ca-intensity", "0");
@@ -1061,6 +1067,7 @@ export function mountMicroscopeIntro() {
       lensTrack.style.willChange = "transform";
       if (turretPivot?.isConnected) turretPivot.style.willChange = "transform";
       if (contentPivot?.isConnected) contentPivot.style.willChange = "transform";
+      root.classList.add("microscope-intro--zooming");
       root.classList.add("microscope-intro--turret-field");
     }, TURRET_BREAK);
 
