@@ -152,7 +152,7 @@ export function mountMicroscopeIntro() {
      post-carousel-still-blur). Per-element setters previously gated on `isConnected`
      silently failed because root is not in the document until the insertBefore call below,
      so those layers painted nothing in the annulus. */
-  const lensUrl = `${import.meta.env.BASE_URL}bacterialimage1.png`;
+  const lensUrl = `${import.meta.env.BASE_URL}bacterialimage1.webp`;
   root.style.setProperty("--microscope-lens-image", `url("${lensUrl}")`);
 
   document.body.insertBefore(root, page);
