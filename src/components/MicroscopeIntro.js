@@ -396,7 +396,7 @@ export function mountMicroscopeIntro() {
 
   /** Quote → nosepiece turret → focus → focus → turret to site → fade (no scale-into-page). Higher = slower. */
   const INTRO_EXIT_TIME_SCALE = 2;
-  const TURRET_BREAK = 0.14 * INTRO_EXIT_TIME_SCALE;
+  const TURRET_BREAK = 0;
   const TURRET_SWEEP_OUT = 0.3 * INTRO_EXIT_TIME_SCALE;
   const TURRET_SWEEP_IN = 0.34 * INTRO_EXIT_TIME_SCALE;
   const TURRET_LIGHT = 0.06 * INTRO_EXIT_TIME_SCALE;
@@ -600,6 +600,15 @@ export function mountMicroscopeIntro() {
     }, outgoingEnd);
 
     const incomingEl = opts.incomingPanel === "p1" ? p1 : p0;
+    /* Surgical guard: keep incoming panel invisible only during the pre-sweep quiet window.
+       Reveal at sweep start so the outgoing tilt always has image content underneath (not
+       root background), while still preventing pre-swing bleed-through on click. */
+    tl.set(incomingEl, { opacity: 0 }, tStart);
+
+    tl.add(() => {
+      if (incomingEl?.isConnected) incomingEl.style.opacity = "1";
+    }, tStart + dBreak);
+
     /* fromTo defaults immediateRender true — keep false on fromVars so -20° is not applied until sweep-in. */
     tl.fromTo(
       incomingEl,
@@ -659,7 +668,7 @@ export function mountMicroscopeIntro() {
       gsap.set([p0, p1, contentPivot].filter(Boolean), {
         rotation: 0,
         transformOrigin: "50% -150%",
-        clearProps: "zIndex",
+        clearProps: "zIndex,opacity",
         force3D: true,
       });
       if (p0?.isConnected) p0.style.zIndex = "1";
@@ -902,7 +911,7 @@ export function mountMicroscopeIntro() {
       apertureLock.style.visibility = "hidden";
     }
     gsap.set(shakeEl, { x: 0, y: 0 });
-    gsap.set(lensTrack, { xPercent: 0, force3D: true });
+    gsap.set(lensTrack, { xPercent: 0 });
     const panelsInit = root.querySelectorAll(".microscope-intro__lens-panel");
     const panel0 = panelsInit[0];
     const panel1 = panelsInit[1];
@@ -910,15 +919,15 @@ export function mountMicroscopeIntro() {
       gsap.set(panel0, {
         rotation: 0,
         zIndex: 2,
+        opacity: 1,
         transformOrigin: "50% -150%",
-        force3D: true,
       });
       /* Rear objective at 0 until incoming tween applies -20 at outgoingEnd (immediateRender: false). */
       gsap.set(panel1, {
         rotation: 0,
         zIndex: 1,
+        opacity: 1,
         transformOrigin: "50% -150%",
-        force3D: true,
       });
     }
     if (contentPivot?.isConnected) {
@@ -926,7 +935,6 @@ export function mountMicroscopeIntro() {
       gsap.set(contentPivot, {
         rotation: 0,
         transformOrigin: "50% -150%",
-        force3D: true,
       });
     }
     if (quoteEl?.isConnected) {
@@ -1062,6 +1070,15 @@ export function mountMicroscopeIntro() {
         transformOrigin: `${ox}px ${oy}px`,
         scale: 1,
       });
+      if (panel0 && panel1) {
+        gsap.set([panel0, panel1], { force3D: true, transformOrigin: "50% -150%" });
+      }
+      if (lensTrack?.isConnected) {
+        gsap.set(lensTrack, { force3D: true });
+      }
+      if (contentPivot?.isConnected) {
+        gsap.set(contentPivot, { force3D: true, transformOrigin: "50% -150%" });
+      }
       shakeEl.style.willChange = "transform";
       lensCarousel.style.willChange = "transform";
       lensTrack.style.willChange = "transform";
@@ -1098,12 +1115,14 @@ export function mountMicroscopeIntro() {
       gsap.set(panel0, {
         rotation: -20,
         zIndex: 1,
+        opacity: 1,
         transformOrigin: "50% -150%",
         force3D: true,
       });
       gsap.set(panel1, {
         rotation: 0,
         zIndex: 2,
+        opacity: 1,
         transformOrigin: "50% -150%",
         force3D: true,
       });
@@ -1296,39 +1315,16 @@ export function mountMicroscopeIntro() {
     });
   }
 
-  /** Hide Adjust first so the zoom never reads as “into the button”. */
+  /** Kick off exit immediately on click (no pre-animation wait window). */
   function beginEnterDismiss(ev) {
     if (exiting || enter.disabled) return;
     const prep = prepareExit(ev);
     if (!prep) return;
     enter.blur();
     enter.disabled = true;
-
-    let proceeded = false;
-    let fallbackId = null;
-
-    function onHideEnd(e) {
-      if (e.target !== enter) return;
-      if (e.propertyName !== "opacity" && e.propertyName !== "transform") return;
-      enter.removeEventListener("transitionend", onHideEnd);
-      if (fallbackId != null) window.clearTimeout(fallbackId);
-      proceed();
-    }
-
-    function proceed() {
-      if (proceeded) return;
-      if (!enter.isConnected) return;
-      proceeded = true;
-      enter.removeEventListener("transitionend", onHideEnd);
-      if (fallbackId != null) window.clearTimeout(fallbackId);
-      void executeAdjustExit(ev);
-    }
-
-    requestAnimationFrame(() => {
-      enter.classList.add("microscope-intro__enter--hide");
-      enter.addEventListener("transitionend", onHideEnd);
-      fallbackId = window.setTimeout(proceed, Math.round(380 * INTRO_EXIT_TIME_SCALE));
-    });
+    enter.classList.add("microscope-intro__enter--hide");
+    if (!enter.isConnected) return;
+    void executeAdjustExit(ev);
   }
 
   enter.addEventListener("click", (e) => beginEnterDismiss(e));
